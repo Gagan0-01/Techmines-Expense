@@ -1,0 +1,135 @@
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+
+const AuthContext = createContext(null);
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(() => localStorage.getItem('techmines_token'));
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Configure global axios auth header
+  useEffect(() => {
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      localStorage.setItem('techmines_token', token);
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+      localStorage.removeItem('techmines_token');
+    }
+  }, [token]);
+
+  // Verify active user session on app load
+  const loadUser = useCallback(async () => {
+    const savedToken = localStorage.getItem('techmines_token');
+    if (!savedToken) {
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
+      const res = await axios.get('/api/auth/me');
+      if (res.data.success) {
+        setUser(res.data.user);
+        setToken(savedToken);
+      } else {
+        setUser(null);
+        setToken(null);
+      }
+    } catch (err) {
+      console.warn('Session expired or invalid, logging out.');
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem('techmines_token');
+      delete axios.defaults.headers.common['Authorization'];
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadUser();
+  }, [loadUser]);
+
+  // Login action
+  const login = async (email, password) => {
+    try {
+      const res = await axios.post('/api/auth/login', { email, password });
+      if (res.data.success) {
+        setToken(res.data.token);
+        setUser(res.data.user);
+        localStorage.setItem('techmines_token', res.data.token);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
+        return { success: true };
+      }
+      return { success: false, message: res.data.message || 'Login failed' };
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Login failed';
+      return { success: false, message: msg };
+    }
+  };
+
+  // Register action
+  const register = async (name, email, password, confirmPassword) => {
+    try {
+      const res = await axios.post('/api/auth/register', {
+        name,
+        email,
+        password,
+        confirmPassword,
+      });
+      if (res.data.success) {
+        setToken(res.data.token);
+        setUser(res.data.user);
+        localStorage.setItem('techmines_token', res.data.token);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
+        return { success: true };
+      }
+      return { success: false, message: res.data.message || 'Registration failed' };
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Registration failed';
+      return { success: false, message: msg };
+    }
+  };
+
+  // Logout action
+  const logout = async () => {
+    try {
+      if (token) {
+        await axios.post('/api/auth/logout').catch(() => {});
+      }
+    } finally {
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem('techmines_token');
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isAuthenticated: Boolean(user && token),
+        isLoading,
+        login,
+        register,
+        logout,
+        refreshSession: loadUser,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+};

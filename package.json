@@ -1,17 +1,14 @@
 {
-  "name": "enterprise-treasury-ledger",
+  "name": "techmines-office-ledger",
   "version": "1.0.0",
-  "description": "Enterprise Treasury & Financial Ledger Web Application",
-  "private": true,
+  "description": "TechMines — Professional Office Expense & Ledger Web App",
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
-    "build": "npm --prefix backend run build && npm --prefix frontend run build",
-    "test": "npm --prefix backend test && npm --prefix frontend test",
-    "seed": "npm --prefix backend run seed"
+    "build:frontend": "npm --prefix frontend run build"
   },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
-  }
+  "keywords": ["ledger", "office-expenses", "accounting", "mern", "techmines"],
+  "author": "TechMines",
+  "license": "ISC"
 }

@@ -1,16 +1,40 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/src/assets/logo/techmines-logo-light.png" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/png" href="/src/assets/logo/techmines-logo-dark.png" media="(prefers-color-scheme: dark)" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Enterprise Treasury & Financial Ledger | Global Liquidity Suite</title>
-    <meta name="description" content="Next-generation multi-currency enterprise treasury management, double-entry general ledger, real-time cash flow forecasting, and dual-control compliance." />
+    <title>TechMines Office Ledger — Professional Expense & Cash Flow Management</title>
+    <meta name="description" content="Simple, professional office ledger and expense management application for TechMines." />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('techmines-theme') || localStorage.getItem('techmines_theme');
+          var theme = saved;
+          if (!theme && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+            theme = 'light';
+          }
+          if (theme === 'light') {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.add('light');
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.documentElement.style.colorScheme = 'light';
+          } else {
+            document.documentElement.classList.remove('light');
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.documentElement.style.colorScheme = 'dark';
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="bg-[#080d1a] text-slate-100 font-sans antialiased selection:bg-blue-600 selection:text-white">
+  <body class="bg-[#F8FAFC] dark:bg-[#000000] text-[#111827] dark:text-zinc-100 font-sans antialiased selection:bg-[#ff5e00]/30 selection:text-white min-h-screen">
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
