@@ -1,9 +1,21 @@
 import axios from 'axios';
 
+const getBaseURL = () => {
+  const envUrl = import.meta.env.VITE_API_URL?.trim();
+  if (!envUrl) {
+    if (import.meta.env.PROD) {
+      console.warn(
+        '[TechMines API] ⚠️ VITE_API_URL is missing in Vercel environment variables! Falling back to /api, which causes 404s.'
+      );
+    }
+    return '/api';
+  }
+  const cleanUrl = envUrl.replace(/\/+$/, '');
+  return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL
-    ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api`
-    : '/api',
+  baseURL: getBaseURL(),
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
