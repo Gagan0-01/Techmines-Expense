@@ -11,12 +11,18 @@ export const connectDB = async () => {
 
   try {
     const conn = await mongoose.connect(primaryUri, {
-      serverSelectionTimeoutMS: 2500,
+      serverSelectionTimeoutMS: 10000,
     });
     isConnected = true;
     console.log(`[MongoDB] Connected to database: ${conn.connection.host}/${conn.connection.name}`);
   } catch (err) {
-    console.warn(`[MongoDB] Primary connection to '${primaryUri}' failed (${err.message}).`);
+    console.error(`[MongoDB] Primary connection to '${primaryUri}' failed:`, err.message);
+
+    // In production, do not attempt in-memory fallback; fail fast with clear diagnostic
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`[MongoDB] Failed to connect to MongoDB Atlas in production: ${err.message}. Please verify network IP whitelist (0.0.0.0/0) in MongoDB Atlas.`);
+    }
+
     console.log('[MongoDB] Starting embedded MongoDB Memory Server for seamless zero-setup operation...');
 
     try {
