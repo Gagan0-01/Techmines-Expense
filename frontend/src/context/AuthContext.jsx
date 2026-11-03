@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -8,13 +8,11 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem('techmines_token'));
   const [isLoading, setIsLoading] = useState(true);
 
-  // Configure global axios auth header
+  // Sync token to localStorage
   useEffect(() => {
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       localStorage.setItem('techmines_token', token);
     } else {
-      delete axios.defaults.headers.common['Authorization'];
       localStorage.removeItem('techmines_token');
     }
   }, [token]);
@@ -29,8 +27,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
-      const res = await axios.get('/api/auth/me');
+      const res = await api.get('/auth/me');
       if (res.data.success) {
         setUser(res.data.user);
         setToken(savedToken);
@@ -43,7 +40,6 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setToken(null);
       localStorage.removeItem('techmines_token');
-      delete axios.defaults.headers.common['Authorization'];
     } finally {
       setIsLoading(false);
     }
@@ -56,12 +52,11 @@ export const AuthProvider = ({ children }) => {
   // Login action
   const login = async (email, password) => {
     try {
-      const res = await axios.post('/api/auth/login', { email, password });
+      const res = await api.post('/auth/login', { email, password });
       if (res.data.success) {
         setToken(res.data.token);
         setUser(res.data.user);
         localStorage.setItem('techmines_token', res.data.token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
         return { success: true };
       }
       return { success: false, message: res.data.message || 'Login failed' };
@@ -74,7 +69,7 @@ export const AuthProvider = ({ children }) => {
   // Register action
   const register = async (name, email, password, confirmPassword) => {
     try {
-      const res = await axios.post('/api/auth/register', {
+      const res = await api.post('/auth/register', {
         name,
         email,
         password,
@@ -84,7 +79,6 @@ export const AuthProvider = ({ children }) => {
         setToken(res.data.token);
         setUser(res.data.user);
         localStorage.setItem('techmines_token', res.data.token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
         return { success: true };
       }
       return { success: false, message: res.data.message || 'Registration failed' };
@@ -98,13 +92,12 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       if (token) {
-        await axios.post('/api/auth/logout').catch(() => {});
+        await api.post('/auth/logout').catch(() => {});
       }
     } finally {
       setUser(null);
       setToken(null);
       localStorage.removeItem('techmines_token');
-      delete axios.defaults.headers.common['Authorization'];
     }
   };
 
