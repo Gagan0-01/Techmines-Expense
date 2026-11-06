@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { RecurringSchedule } from '../models/RecurringSchedule.js';
 import { Transaction } from '../models/Transaction.js';
 
@@ -105,6 +106,9 @@ export const createRecurringSchedule = async (req, res) => {
 export const updateRecurringSchedule = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ success: false, message: 'Recurring schedule not found or unauthorized' });
+    }
     const {
       title,
       amount,
@@ -155,6 +159,9 @@ export const updateRecurringSchedule = async (req, res) => {
 export const markOccurrenceCompleted = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ success: false, message: 'Schedule not found or unauthorized' });
+    }
     const { actualAmount, actualDate, actualPaymentMethod, notes } = req.body;
 
     const schedule = await RecurringSchedule.findOne({ _id: id, userId: req.userId });
@@ -216,6 +223,9 @@ export const markOccurrenceCompleted = async (req, res) => {
 export const deleteRecurringSchedule = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ success: false, message: 'Schedule not found or unauthorized' });
+    }
     const deleted = await RecurringSchedule.findOneAndDelete({ _id: id, userId: req.userId });
     if (!deleted) {
       return res.status(404).json({ success: false, message: 'Schedule not found or unauthorized' });

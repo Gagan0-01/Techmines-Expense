@@ -25,33 +25,39 @@ export const defaultCategories = [
   { name: 'Other', type: 'both', isDefault: true },
 ];
 
+/**
+ * Non-destructive default initialization.
+ * Guards:
+ * - In production: strictly skips demo users, sample transactions, and index modifications.
+ * - In all environments: never overwrites or deletes existing data.
+ */
 export const seedDefaults = async () => {
   try {
-    // Drop old obsolete global unique name_1 index if present on Category
-    try {
-      await Category.collection.dropIndex('name_1');
-    } catch (ignore) {}
+    const isProduction = process.env.NODE_ENV === 'production';
 
-    // Drop old obsolete global unique key_1 index if present on Settings
-    try {
-      await Settings.collection.dropIndex('key_1');
-    } catch (ignore) {}
-
-    // Seed global default categories (userId: null) if none exist
+    // 1. Seed global default categories (userId: null) ONLY if zero categories exist
     const defaultCount = await Category.countDocuments({ userId: null });
     if (defaultCount === 0) {
       await Category.insertMany(defaultCategories.map((c) => ({ ...c, userId: null })));
-      console.log(`[Seed] Seeded ${defaultCategories.length} default categories.`);
+      console.log(`[Seed] Initialized ${defaultCategories.length} default global categories.`);
     }
 
-    // Seed a convenient demo user for immediate evaluation
+    // 2. Production Safety Guard: Never seed demo users or mock transactions in production
+    if (isProduction) {
+      return;
+    }
+
+    // 3. In non-production (development only): Seed demo user only if it does not already exist
     const demoEmail = 'demo@techmines.com';
     let demoUser = await User.findOne({ email: demoEmail });
     if (!demoUser) {
+      const anyOwner = await User.findOne({ isOwner: true });
       demoUser = await User.create({
         name: 'TechMines Admin',
         email: demoEmail,
         password: 'Password123!',
+        role: anyOwner ? 'member' : 'admin',
+        isOwner: !anyOwner,
       });
 
       // Settings for demo user
@@ -97,9 +103,9 @@ export const seedDefaults = async () => {
           notes: 'Workstation setup for design team',
         },
       ]);
-      console.log('[Seed] Seeded demo user: demo@techmines.com / Password123!');
+      console.log('[Seed] Dev demo user initialized: demo@techmines.com / Password123!');
     }
   } catch (err) {
-    console.error('[Seed] Error in seedDefaults:', err.message);
+    console.error('[Seed] Non-fatal initialization note:', err.message);
   }
 };

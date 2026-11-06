@@ -12,6 +12,10 @@ export const connectDB = async () => {
   try {
     const conn = await mongoose.connect(primaryUri, {
       serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      maxPoolSize: 20,
+      minPoolSize: 2,
     });
     isConnected = true;
     console.log(`[MongoDB] Connected to database: ${conn.connection.host}/${conn.connection.name}`);
@@ -37,7 +41,7 @@ export const connectDB = async () => {
       isConnected = true;
       console.log(`[MongoDB] Successfully connected to embedded MongoDB: ${memoryUri}`);
     } catch (memErr) {
-      console.error('[MongoDB] Critical: Failed to start embedded MongoDB Memory Server:', memErr); 
+      console.error('[MongoDB] Critical: Failed to start embedded MongoDB Memory Server:', memErr);
       throw memErr;
     }
   }

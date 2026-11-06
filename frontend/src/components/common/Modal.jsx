@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-lg' }) => {
@@ -18,17 +19,19 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-lg' 
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto font-sans">
-      {/* Backdrop */}
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] overflow-y-auto font-sans">
+      {/* Backdrop covering entire viewport */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
         onClick={onClose}
+        aria-hidden="true"
       />
 
-      <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+      {/* Centered Modal Container */}
+      <div className="relative flex min-h-full items-center justify-center p-4 text-center sm:p-0 z-10 pointer-events-none">
         <div
-          className={`relative transform overflow-hidden rounded-3xl bg-white dark:bg-[#0d0d0d] text-left shadow-2xl transition-all duration-200 w-full ${maxWidth} border border-slate-200 dark:border-zinc-800 my-8`}
+          className={`relative transform overflow-hidden rounded-3xl bg-white dark:bg-[#0d0d0d] text-left shadow-2xl transition-all duration-200 w-full ${maxWidth} border border-slate-200 dark:border-zinc-800 my-8 pointer-events-auto`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -46,6 +49,7 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-lg' 
           <div className="p-6 text-slate-700 dark:text-zinc-200">{children}</div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

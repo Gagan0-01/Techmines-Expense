@@ -76,14 +76,18 @@ export const getTransactions = async (req, res) => {
       sortOptions = { amount: 1, date: -1 };
     }
 
-    // Pagination
-    let query = Transaction.find(filter).sort(sortOptions);
+    // Pagination & Bounded Query Protection to prevent memory exhaustion
     let totalCount = await Transaction.countDocuments(filter);
+    let query = Transaction.find(filter).sort(sortOptions).lean();
 
     if (page && limit) {
-      const pageNum = parseInt(page, 10) || 1;
-      const limitNum = parseInt(limit, 10) || 20;
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
       query = query.skip((pageNum - 1) * limitNum).limit(limitNum);
+    } else {
+      // Safe upper cap for unpaginated queries to protect Node heap & MongoDB
+      const defaultCap = Math.min(500, Math.max(1, parseInt(process.env.MAX_UNPAGINATED_TRANSACTIONS, 10) || 500));
+      query = query.limit(defaultCap);
     }
 
     const transactions = await query.exec();
@@ -283,7 +287,11 @@ export const getLedgerSummary = async (req, res) => {
  */
 export const getTransactionById = async (req, res) => {
   try {
-    const transaction = await Transaction.findOne({ _id: req.params.id, userId: req.userId });
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ success: false, message: 'Transaction not found' });
+    }
+    const transaction = await Transaction.findOne({ _id: id, userId: req.userId });
     if (!transaction) {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
@@ -370,6 +378,9 @@ export const createTransaction = async (req, res) => {
 export const updateTransaction = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ success: false, message: 'Transaction not found' });
+    }
     const {
       title,
       amount,
@@ -448,6 +459,9 @@ export const updateTransaction = async (req, res) => {
 export const deleteTransaction = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ success: false, message: 'Transaction not found or unauthorized' });
+    }
     const deleted = await Transaction.findOneAndDelete({ _id: id, userId: req.userId });
 
     if (!deleted) {

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Category } from '../models/Category.js';
 
 export const getCategories = async (req, res) => {
@@ -52,6 +53,9 @@ export const createCategory = async (req, res) => {
 export const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ success: false, message: 'Category not found or unauthorized' });
+    }
     const { name, type } = req.body;
 
     const category = await Category.findOne({ _id: id, userId: req.userId });
@@ -86,6 +90,9 @@ export const updateCategory = async (req, res) => {
 export const deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ success: false, message: 'Category not found or unauthorized' });
+    }
     const category = await Category.findOneAndDelete({ _id: id, userId: req.userId });
     if (!category) {
       return res.status(404).json({ success: false, message: 'Category not found or unauthorized' });
