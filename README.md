@@ -25,9 +25,6 @@ TechMines Office Ledger is a clean, reliable, production-quality office ledger a
 ### 3. Secure Authentication & Financial Data Isolation
 - **User Registration & Login**: Built with `bcryptjs` password hashing and secure JWT authentication.
 - **Strict Data Isolation**: Every transaction, opening balance, category, and recurring schedule is strictly isolated per user account via backend `userId` enforcement.
-- **Demo Account**: Seeded automatically for rapid evaluation:
-  - **Email**: `demo@techmines.com`
-  - **Password**: `Password123!`
 - **Protected Routes**: Unauthenticated users are redirected to `/login`, preserving their target destination upon sign-in.
 
 ### 4. Fully Responsive Layout (320px to 4K)
