@@ -133,11 +133,14 @@ export const validateReceiptFinancials = (structuredData = {}) => {
   if (warnings.length > 0) {
     confidenceScore -= warnings.length * 15;
   }
-  if (!merchant.name) {
+  const merchantNameVal = structuredData.merchantName?.value || merchant.name;
+  if (!merchantNameVal) {
     confidenceScore -= 10;
     warnings.push('Merchant or institution name could not be identified.');
   }
-  if (!invoice.date) {
+
+  const dateVal = structuredData.date?.value || invoice.date;
+  if (!dateVal) {
     confidenceScore -= 10;
     warnings.push('Transaction date was not found on receipt.');
   }
