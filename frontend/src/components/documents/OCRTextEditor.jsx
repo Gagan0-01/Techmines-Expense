@@ -164,15 +164,16 @@ export const OCRTextEditor = ({ document, onDocumentUpdated }) => {
    */
   const handleCreateExpense = () => {
     const s = structuredData || {};
-    const merchantName = s.merchant?.name || document.title || 'Scanned Expense';
-    const amountVal = s.financials?.grandTotal ?? '';
-    const paymentMethodVal = s.payment?.method || 'UPI';
-    const refNum = s.invoice?.receiptNumber || s.payment?.referenceNumber || '';
+    const merchantName = s.merchantName?.value || s.merchant?.name || document.title || 'Scanned Expense';
+    const amountVal = s.total?.value ?? s.financials?.grandTotal ?? '';
+    const paymentMethodVal = s.paymentMethod?.value || s.payment?.method || 'UPI';
+    const refNum = s.receiptNumber?.value || s.invoice?.receiptNumber || s.transactionReference?.value || '';
 
     let txDate = toInputDateTimeFormat(new Date());
-    if (s.invoice?.date) {
+    const dateStr = s.date?.value || s.invoice?.date;
+    if (dateStr) {
       try {
-        const parsed = new Date(s.invoice.date);
+        const parsed = new Date(dateStr);
         if (!isNaN(parsed.getTime())) {
           txDate = toInputDateTimeFormat(parsed);
         }
@@ -193,7 +194,7 @@ export const OCRTextEditor = ({ document, onDocumentUpdated }) => {
 
     openAddExpense({
       title: merchantName,
-      amount: amountVal ? String(amountVal) : '',
+      amount: amountVal !== '' ? String(amountVal) : '',
       type: 'expense',
       category: matchedCategory,
       paymentMethod: ['Cash', 'UPI', 'Bank Transfer'].includes(paymentMethodVal)
@@ -359,11 +360,11 @@ export const OCRTextEditor = ({ document, onDocumentUpdated }) => {
                     <span>Merchant / Issuer</span>
                   </div>
                   <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                    {structuredData.merchant?.name || '—'}
+                    {structuredData.merchantName?.value || structuredData.merchant?.name || '—'}
                   </p>
-                  {structuredData.merchant?.taxId && (
+                  {(structuredData.merchantTaxId?.value || structuredData.merchant?.taxId) && (
                     <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
-                      GSTIN/Tax ID: <span className="font-mono">{structuredData.merchant.taxId}</span>
+                      GSTIN/Tax ID: <span className="font-mono">{structuredData.merchantTaxId?.value || structuredData.merchant?.taxId}</span>
                     </p>
                   )}
                   {structuredData.merchant?.phone && (
@@ -380,16 +381,16 @@ export const OCRTextEditor = ({ document, onDocumentUpdated }) => {
                     <span>Receipt & Date</span>
                   </div>
                   <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                    {structuredData.invoice?.receiptNumber ? `#${structuredData.invoice.receiptNumber}` : '—'}
+                    {(structuredData.receiptNumber?.value || structuredData.invoice?.receiptNumber) ? `#${structuredData.receiptNumber?.value || structuredData.invoice?.receiptNumber}` : '—'}
                   </p>
                   <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
-                    {structuredData.invoice?.date || 'Date not detected'}
+                    {structuredData.date?.value || structuredData.invoice?.date || 'Date not detected'}
                   </p>
-                  {structuredData.payment?.method && (
+                  {(structuredData.paymentMethod?.value || structuredData.payment?.method) && (
                     <p className="text-[11px] text-slate-500 dark:text-zinc-400 flex items-center gap-1 mt-0.5">
                       <CreditCard className="w-3 h-3" />
-                      Paid via: <strong className="text-slate-700 dark:text-zinc-300">{structuredData.payment.method}</strong>
+                      Paid via: <strong className="text-slate-700 dark:text-zinc-300">{structuredData.paymentMethod?.value || structuredData.payment?.method}</strong>
                     </p>
                   )}
                 </div>
@@ -403,23 +404,29 @@ export const OCRTextEditor = ({ document, onDocumentUpdated }) => {
                     <span className="text-[10px] text-slate-400 font-normal">Amount</span>
                   </div>
                   <div className="divide-y divide-slate-100 dark:divide-zinc-800/80 max-h-[180px] overflow-y-auto">
-                    {structuredData.items.map((item, idx) => (
-                      <div key={idx} className="p-2.5 text-xs flex items-center justify-between gap-2 hover:bg-slate-50/60 dark:hover:bg-zinc-900/40">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-slate-900 dark:text-white truncate">
-                            {item.description || `Item #${idx + 1}`}
-                          </p>
-                          {(item.quantity || item.unitPrice) && (
-                            <p className="text-[10px] text-slate-400">
-                              Qty: {item.quantity || 1} {item.unitPrice ? `@ ₹${item.unitPrice}` : ''}
+                    {structuredData.items.map((item, idx) => {
+                      const desc = item.description?.value || item.description || `Item #${idx + 1}`;
+                      const qty = item.quantity?.value ?? item.quantity;
+                      const price = item.unitPrice?.value ?? item.unitPrice;
+                      const amt = item.amount?.value ?? item.amount;
+                      return (
+                        <div key={idx} className="p-2.5 text-xs flex items-center justify-between gap-2 hover:bg-slate-50/60 dark:hover:bg-zinc-900/40">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-slate-900 dark:text-white truncate">
+                              {desc}
                             </p>
-                          )}
+                            {(qty || price) && (
+                              <p className="text-[10px] text-slate-400">
+                                Qty: {qty || 1} {price ? `@ ₹${price}` : ''}
+                              </p>
+                            )}
+                          </div>
+                          <span className="font-semibold text-slate-900 dark:text-white shrink-0">
+                            {amt !== null && amt !== undefined ? formatINR(amt) : '—'}
+                          </span>
                         </div>
-                        <span className="font-semibold text-slate-900 dark:text-white shrink-0">
-                          {item.amount !== null ? formatINR(item.amount) : '—'}
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -429,22 +436,35 @@ export const OCRTextEditor = ({ document, onDocumentUpdated }) => {
                 <div className="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
                   <span>Subtotal</span>
                   <span className="font-medium text-slate-700 dark:text-zinc-200">
-                    {structuredData.financials?.subtotal !== null ? formatINR(structuredData.financials.subtotal) : '—'}
+                    {(structuredData.subtotal?.value !== null && structuredData.subtotal?.value !== undefined)
+                      ? formatINR(structuredData.subtotal.value)
+                      : (structuredData.financials?.subtotal !== null && structuredData.financials?.subtotal !== undefined
+                          ? formatINR(structuredData.financials.subtotal)
+                          : '—')}
                   </span>
                 </div>
 
-                {Boolean(structuredData.financials?.discount) && (
+                {Boolean(structuredData.discount?.value || structuredData.financials?.discount) && (
                   <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400">
                     <span>Discount</span>
-                    <span className="font-medium">- {formatINR(structuredData.financials.discount)}</span>
+                    <span className="font-medium">- {formatINR(structuredData.discount?.value ?? structuredData.financials?.discount)}</span>
                   </div>
                 )}
 
-                {Boolean(structuredData.financials?.tax) && (
+                {Boolean(structuredData.tax?.value || structuredData.financials?.tax) && (
                   <div className="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
                     <span>Tax / GST</span>
                     <span className="font-medium text-slate-700 dark:text-zinc-200">
-                      + {formatINR(structuredData.financials.tax)}
+                      + {formatINR(structuredData.tax?.value ?? structuredData.financials?.tax)}
+                    </span>
+                  </div>
+                )}
+
+                {Boolean(structuredData.additionalCharges?.value) && (
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                    <span>Additional Charges</span>
+                    <span className="font-medium text-slate-700 dark:text-zinc-200">
+                      + {formatINR(structuredData.additionalCharges.value)}
                     </span>
                   </div>
                 )}
@@ -457,9 +477,11 @@ export const OCRTextEditor = ({ document, onDocumentUpdated }) => {
                     <span className="block text-[10px] text-slate-400">Final payable amount</span>
                   </div>
                   <span className="text-lg font-extrabold text-[#ff5e00]">
-                    {structuredData.financials?.grandTotal !== null
-                      ? formatINR(structuredData.financials.grandTotal)
-                      : '—'}
+                    {(structuredData.total?.value !== null && structuredData.total?.value !== undefined)
+                      ? formatINR(structuredData.total.value)
+                      : (structuredData.financials?.grandTotal !== null && structuredData.financials?.grandTotal !== undefined
+                          ? formatINR(structuredData.financials.grandTotal)
+                          : '—')}
                   </span>
                 </div>
               </div>

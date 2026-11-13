@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { createWorker } from 'tesseract.js';
 import * as pdfModule from 'pdf-parse';
-import { extractReceiptWithGemini, isGeminiConfigured, getGeminiModelName } from './geminiVisionService.js';
+import { processReceiptWithGemini, isGeminiConfigured, getGeminiModelName } from './geminiReceiptService.js';
 import { validateReceiptFinancials } from './financialValidationService.js';
 
 // Handle both named export and default export across module bundling
@@ -101,17 +101,25 @@ export const extractText = async (filePath, mimeType) => {
   // 1. Try Google Gemini Flash Vision if configured
   if (isGeminiConfigured()) {
     try {
-      const geminiResult = await extractReceiptWithGemini(filePath, mimeType);
+      const geminiResult = await processReceiptWithGemini(filePath, mimeType);
+      const data = geminiResult.data;
       return {
-        text: geminiResult.rawText,
-        confidence: geminiResult.confidence,
-        structuredData: geminiResult.structuredData,
-        financialValidation: geminiResult.financialValidation,
-        documentType: geminiResult.documentType,
+        text: data.rawText || '',
+        confidence: data.total?.confidence || 85,
+        structuredData: data,
+        financialValidation: {
+          isMathValid: data.calculations?.isMathConsistent,
+          calculatedTotal: data.calculations?.calculatedFinalTotal,
+          discrepancy: data.calculations?.mathDiscrepancy,
+          warnings: data.warnings || [],
+          requiresManualReview: data.requiresManualReview,
+        },
+        documentType: data.documentType || 'receipt',
         ocrEngine: geminiResult.engine,
         metadata: {
           engine: geminiResult.engine,
           model: getGeminiModelName(),
+          isHandwritten: data.isHandwritten,
           extractedAt: new Date().toISOString(),
         },
       };

@@ -8,7 +8,16 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "build:frontend": "npm --prefix frontend run build"
   },
-  "keywords": ["ledger", "office-expenses", "accounting", "mern", "techmines"],
+  "keywords": [
+    "ledger",
+    "office-expenses",
+    "accounting",
+    "mern",
+    "techmines"
+  ],
   "author": "TechMines",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "^3.3.0"
+  }
 }
