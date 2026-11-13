@@ -4,7 +4,7 @@ import { useLedger } from '../../context/LedgerContext';
 import { useToast } from '../../context/ToastContext';
 import { createTransaction, updateTransaction } from '../../services/api';
 import { toInputDateTimeFormat } from '../../utils/date';
-import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Sparkles } from 'lucide-react';
 
 export const TransactionFormModal = () => {
   const {
@@ -183,6 +183,21 @@ export const TransactionFormModal = () => {
         {errorMessage && (
           <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-500 dark:text-rose-400 text-xs rounded-xl font-medium">
             {errorMessage}
+          </div>
+        )}
+
+        {/* Scanned Receipt Pre-fill Banner */}
+        {transactionModal.defaultValues?.isFromOcr && (
+          <div className="p-3 bg-orange-500/10 border border-orange-500/30 text-slate-800 dark:text-zinc-200 text-xs rounded-xl flex items-start gap-2.5">
+            <Sparkles className="w-4 h-4 text-[#ff5e00] shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-bold text-slate-900 dark:text-white">
+                Scanned Receipt Pre-fill
+              </span>
+              <p className="text-[11px] text-slate-600 dark:text-zinc-400">
+                Values have been pre-filled from your scanned document. Please review the amount, category, and date before confirming to save to your ledger.
+              </p>
+            </div>
           </div>
         )}
 

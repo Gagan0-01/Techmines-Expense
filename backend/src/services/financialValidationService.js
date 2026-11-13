@@ -16,10 +16,21 @@ export const validateReceiptFinancials = (structuredData = {}) => {
   const invoice = structuredData.invoice || {};
   const merchant = structuredData.merchant || {};
 
-  const grandTotal = typeof financials.grandTotal === 'number' ? financials.grandTotal : null;
-  const subtotal = typeof financials.subtotal === 'number' ? financials.subtotal : null;
-  const discount = typeof financials.discount === 'number' ? financials.discount : 0;
-  const tax = typeof financials.tax === 'number' ? financials.tax : 0;
+  const grandTotal = typeof structuredData.total?.value === 'number'
+    ? structuredData.total.value
+    : (typeof financials.grandTotal === 'number' ? financials.grandTotal : null);
+  const subtotal = typeof structuredData.subtotal?.value === 'number'
+    ? structuredData.subtotal.value
+    : (typeof financials.subtotal === 'number' ? financials.subtotal : null);
+  const discount = typeof structuredData.discount?.value === 'number'
+    ? structuredData.discount.value
+    : (typeof financials.discount === 'number' ? financials.discount : 0);
+  const tax = typeof structuredData.tax?.value === 'number'
+    ? structuredData.tax.value
+    : (typeof financials.tax === 'number' ? financials.tax : 0);
+  const additionalCharges = typeof structuredData.additionalCharges?.value === 'number'
+    ? structuredData.additionalCharges.value
+    : 0;
 
   // 1. Sanity check: Ensure grandTotal is not missing or zero
   if (grandTotal === null || grandTotal === undefined) {
@@ -59,9 +70,16 @@ export const validateReceiptFinancials = (structuredData = {}) => {
   let hasValidItems = false;
 
   items.forEach((item, index) => {
-    const itemAmount = typeof item.amount === 'number' ? item.amount : null;
-    const itemQty = typeof item.quantity === 'number' ? item.quantity : 1;
-    const itemPrice = typeof item.unitPrice === 'number' ? item.unitPrice : null;
+    const itemAmount = typeof item.amount?.value === 'number'
+      ? item.amount.value
+      : (typeof item.amount === 'number' ? item.amount : null);
+    const itemQty = typeof item.quantity?.value === 'number'
+      ? item.quantity.value
+      : (typeof item.quantity === 'number' ? item.quantity : 1);
+    const itemPrice = typeof item.unitPrice?.value === 'number'
+      ? item.unitPrice.value
+      : (typeof item.unitPrice === 'number' ? item.unitPrice : null);
+    const itemDesc = item.description?.value || (typeof item.description === 'string' ? item.description : `Item #${index + 1}`);
 
     if (itemAmount !== null && itemAmount > 0) {
       lineItemsSum += itemAmount;
@@ -73,7 +91,7 @@ export const validateReceiptFinancials = (structuredData = {}) => {
         const lineDiff = Math.abs(expectedLineAmount - itemAmount);
         if (lineDiff > 1.0) {
           warnings.push(
-            `Line item #${index + 1} ("${item.description || 'Item'}") calculation mismatch: ${itemQty} × ${itemPrice} = ${expectedLineAmount}, but amount is ${itemAmount}.`
+            `Line item #${index + 1} ("${itemDesc}") calculation mismatch: ${itemQty} × ${itemPrice} = ${expectedLineAmount}, but amount is ${itemAmount}.`
           );
         }
       }
@@ -97,13 +115,13 @@ export const validateReceiptFinancials = (structuredData = {}) => {
   const baseForTotal = subtotal !== null ? subtotal : (hasValidItems ? lineItemsSum : null);
 
   if (baseForTotal !== null && grandTotal !== null) {
-    calculatedTotal = Math.round((baseForTotal - discount + tax) * 100) / 100;
+    calculatedTotal = Math.round((baseForTotal - discount + tax + additionalCharges) * 100) / 100;
     discrepancy = Math.round(Math.abs(calculatedTotal - grandTotal) * 100) / 100;
 
     // Allow small rounding tolerance (up to 1.50 for paise/rounding/cess differences)
     if (discrepancy > 1.5) {
       warnings.push(
-        `Grand total discrepancy: ${baseForTotal} (Subtotal) - ${discount} (Discount) + ${tax} (Tax) = ${calculatedTotal}, which differs from receipt grand total (${grandTotal}) by ${discrepancy}.`
+        `Grand total discrepancy: ${baseForTotal} (Subtotal) - ${discount} (Discount) + ${tax} (Tax)${additionalCharges ? ` + ${additionalCharges} (Charges)` : ''} = ${calculatedTotal}, which differs from receipt grand total (${grandTotal}) by ${discrepancy}.`
       );
       isMathValid = false;
     }
