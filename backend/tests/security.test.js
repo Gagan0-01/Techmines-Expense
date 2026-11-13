@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 
 // Test isolation: set test JWT secret for test suite execution
-process.env.JWT_SECRET = 'test_suite_jwt_secret_for_automated_testing_2026';
+//  'test_suite_jwt_secret_for_automated_testing_2026';
 import {
   toPaise,
   fromPaise,
@@ -168,7 +168,7 @@ describe('2. User Role Security & Privilege Escalation Protection', () => {
       email: 'owner@techmines.com',
       role: 'admin',
       isOwner: true,
-      save: async () => {},
+      save: async () => { },
     });
 
     try {
@@ -199,7 +199,7 @@ describe('2. User Role Security & Privilege Escalation Protection', () => {
       email: 'admin@techmines.com',
       role: 'admin',
       isOwner: false,
-      save: async () => {},
+      save: async () => { },
     });
     User.countDocuments = async () => 1; // Only 1 admin exists
 

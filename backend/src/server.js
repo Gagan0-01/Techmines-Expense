@@ -17,6 +17,7 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import recurringRoutes from './routes/recurringRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
+import documentRoutes from './routes/documentRoutes.js';
 import { requireAuth } from './middleware/auth.js';
 
 dotenv.config();
@@ -124,6 +125,7 @@ app.use('/api/categories', requireAuth, categoryRoutes);
 app.use('/api/recurring', requireAuth, recurringRoutes);
 app.use('/api/settings', requireAuth, settingsRoutes);
 app.use('/api/reports', requireAuth, reportRoutes);
+app.use('/api/documents', requireAuth, documentRoutes);
 
 // Specific REST guidance for /api/expenses (Scanners probe /api/expenses; actual endpoint is /api/transactions?type=expense)
 app.all('/api/expenses', (req, res) => {

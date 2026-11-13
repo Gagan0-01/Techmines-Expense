@@ -8,6 +8,7 @@ import {
   Layers,
   FileSpreadsheet,
   Tags,
+  ScanText,
 } from 'lucide-react';
 
 /**
@@ -51,6 +52,15 @@ export const PRIMARY_NAV_ITEMS = [
  * (Monthly Comparison, Opening Balance, Export Reports, Category Manager).
  */
 export const getManagementTools = (ledgerContext) => [
+  {
+    id: 'document-scanner',
+    name: 'Document Scanner',
+    path: '/documents',
+    icon: ScanText,
+    type: 'route',
+    badge: 'OCR',
+    description: 'Scan receipts, bills, and extract text',
+  },
   {
     id: 'recurring',
     name: 'Recurring Schedules',

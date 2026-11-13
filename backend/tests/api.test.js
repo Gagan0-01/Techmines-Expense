@@ -154,9 +154,9 @@ test('4. Data Isolation - User A transactions are invisible to User B', async ()
   assert.equal(bDelRes.status, 404);
 });
 
-test('5. Settings - User opening balance isolation', async () => {
-  // User A sets opening balance to ₹75,000
-  await fetch(`${BASE_URL}/settings/opening-balance`, {
+test('5. Settings - Member authorization and opening balance isolation', async () => {
+  // User A is a member and must not be allowed to change opening balance.
+  const updateRes = await fetch(`${BASE_URL}/settings/opening-balance`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -164,22 +164,31 @@ test('5. Settings - User opening balance isolation', async () => {
     },
     body: JSON.stringify({
       openingBalance: 75000,
+      openingBalanceNotes: 'Automated security test',
     }),
   });
 
-  // User B checks opening balance - should be 0
+  assert.equal(updateRes.status, 403);
+
+  // User B must retain their own default opening balance.
   const bSetRes = await fetch(`${BASE_URL}/settings`, {
     headers: { Authorization: `Bearer ${tokenB}` },
   });
+
   const bSetData = await bSetRes.json();
+
+  assert.equal(bSetRes.status, 200);
   assert.equal(bSetData.settings.openingBalance, 0);
 
-  // User A checks opening balance - should be 75,000
+  // User A's opening balance must also remain unchanged.
   const aSetRes = await fetch(`${BASE_URL}/settings`, {
     headers: { Authorization: `Bearer ${tokenA}` },
   });
+
   const aSetData = await aSetRes.json();
-  assert.equal(aSetData.settings.openingBalance, 75000);
+
+  assert.equal(aSetRes.status, 200);
+  assert.equal(aSetData.settings.openingBalance, 0);
 });
 
 test('6. Daily Report and Monthly Comparison for authenticated user', async () => {

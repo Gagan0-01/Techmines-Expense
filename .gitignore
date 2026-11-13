@@ -1,7 +1,10 @@
 node_modules/
 dist/
+uploads/
+backend/uploads/
 .env
 .env.local
 scratch_prompt.txt
 full_prompt.txt
 *.log
+*.traineddata

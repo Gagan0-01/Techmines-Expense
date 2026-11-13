@@ -8,6 +8,7 @@ import { IncomingPage } from './pages/IncomingPage';
 import { ExpensesPage } from './pages/ExpensesPage';
 import { DailyPage } from './pages/DailyPage';
 import { RecurringPage } from './pages/RecurringPage';
+import { DocumentsPage } from './pages/DocumentsPage';
 
 export const App = () => {
   return (
@@ -54,6 +55,14 @@ export const App = () => {
         element={
           <ProtectedRoute>
             <RecurringPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/documents"
+        element={
+          <ProtectedRoute>
+            <DocumentsPage />
           </ProtectedRoute>
         }
       />
