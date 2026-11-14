@@ -609,9 +609,15 @@ export const scanReceiptAndCreateTransaction = async (req, res) => {
       : [];
 
     // 3. Classify as income or expense
+    const typeHint = (req.body.typeHint || req.query.typeHint || '').trim().toLowerCase();
     const classification = classifyReceiptTransaction(data, data.rawText || '', []);
-    const proposedType = classification.proposedType || 'expense';
-    const suggestedCategory = classification.suggestedCategory || 'Office Supplies';
+    let proposedType = classification.proposedType || 'expense';
+    if (['incoming', 'expense'].includes(typeHint)) {
+      if (classification.confidence < 85 || proposedType === typeHint) {
+        proposedType = typeHint;
+      }
+    }
+    const suggestedCategory = classification.suggestedCategory || (proposedType === 'incoming' ? 'Client Payment' : 'Office Supplies');
 
     // 4. Parse and validate amount
     const amount = typeof extractedTotal === 'number' && extractedTotal > 0

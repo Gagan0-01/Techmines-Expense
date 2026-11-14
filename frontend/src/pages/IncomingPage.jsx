@@ -4,7 +4,8 @@ import { SummaryCard } from '../components/common/SummaryCard';
 import { TransactionTable } from '../components/transactions/TransactionTable';
 import { TransactionFilters } from '../components/transactions/TransactionFilters';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
-import { EmptyState } from '../components/common/EmptyState';  
+import { EmptyState } from '../components/common/EmptyState';
+import { QuickReceiptScan } from '../components/transactions/QuickReceiptScan';
 import { useLedger } from '../context/LedgerContext';
 import { fetchTransactions } from '../services/api';
 import { ArrowDownLeft, Calendar, Hash, Plus } from 'lucide-react';
@@ -106,6 +107,15 @@ export const IncomingPage = () => {
             badge="Recorded"
           />
         </div>
+
+        {/* Quick Receipt Scan — AI-powered instant income from receipt photo */}
+        <QuickReceiptScan
+          onTransactionCreated={() => {
+            loadIncomingList();
+            refreshAll();
+          }}
+          defaultType="incoming"
+        />
 
         {/* Filter Controls */}
         <TransactionFilters

@@ -5,6 +5,7 @@ import { TransactionTable } from '../components/transactions/TransactionTable';
 import { TransactionFilters } from '../components/transactions/TransactionFilters';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { EmptyState } from '../components/common/EmptyState';
+import { QuickReceiptScan } from '../components/transactions/QuickReceiptScan';
 import { useLedger } from '../context/LedgerContext';
 import { fetchTransactions } from '../services/api';
 import { ArrowUpRight, Calendar, Hash, Tags, Plus } from 'lucide-react';
@@ -116,6 +117,15 @@ export const ExpensesPage = () => {
             badge="Recorded"
           />
         </div>
+
+        {/* Quick Receipt Scan — AI-powered instant expense from receipt photo */}
+        <QuickReceiptScan
+          onTransactionCreated={() => {
+            loadExpensesList();
+            refreshAll();
+          }}
+          defaultType="expense"
+        />
 
         {/* Filter Controls */}
         <TransactionFilters

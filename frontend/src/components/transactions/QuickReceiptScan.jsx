@@ -22,7 +22,7 @@ const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
  * QuickReceiptScan — Upload a receipt image → AI scans → auto-creates transaction
  * No image is permanently stored. Integrates with LedgerContext for dashboard refresh.
  */
-export const QuickReceiptScan = ({ onTransactionCreated }) => {
+export const QuickReceiptScan = ({ onTransactionCreated, defaultType = null, label = null }) => {
   const { refreshAll } = useLedger();
   const { addToast } = useToast();
   const fileInputRef = useRef(null);
@@ -36,7 +36,7 @@ export const QuickReceiptScan = ({ onTransactionCreated }) => {
 
   // Confirmation form state (when auto-save is not possible)
   const [confirmForm, setConfirmForm] = useState({
-    type: 'expense',
+    type: defaultType || 'expense',
     amount: '',
     category: '',
     title: '',
@@ -52,7 +52,7 @@ export const QuickReceiptScan = ({ onTransactionCreated }) => {
     setErrorMessage('');
     setSavedTransaction(null);
     setConfirmForm({
-      type: 'expense',
+      type: defaultType || 'expense',
       amount: '',
       category: '',
       title: '',
@@ -63,7 +63,7 @@ export const QuickReceiptScan = ({ onTransactionCreated }) => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, []);
+  }, [defaultType]);
 
   const validateFile = (file) => {
     if (!file) return 'No file selected.';
@@ -94,7 +94,7 @@ export const QuickReceiptScan = ({ onTransactionCreated }) => {
     setSavedTransaction(null);
 
     try {
-      const result = await scanReceiptAndAdd(file);
+      const result = await scanReceiptAndAdd(file, defaultType);
 
       if (!result.success) {
         throw new Error(result.message || 'Scan failed.');
@@ -501,7 +501,7 @@ export const QuickReceiptScan = ({ onTransactionCreated }) => {
 
         <div>
           <p className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
-            Quick Receipt Scan
+            {label || (defaultType === 'expense' ? 'Quick Expense Scan' : defaultType === 'incoming' ? 'Quick Income Scan' : 'Quick Receipt Scan')}
           </p>
           <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-0.5 leading-tight">
             Drop or tap to upload • AI auto-adds transaction

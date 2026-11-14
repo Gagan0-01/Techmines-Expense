@@ -159,9 +159,12 @@ export const fetchExportData = async (params = {}) => {
 };
 
 // Quick Receipt Scan & Auto-Add
-export const scanReceiptAndAdd = async (file) => {
+export const scanReceiptAndAdd = async (file, typeHint = null) => {
   const formData = new FormData();
   formData.append('file', file);
+  if (typeHint) {
+    formData.append('typeHint', typeHint);
+  }
   const res = await api.post('/transactions/scan-receipt', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 45000, // Gemini Vision can take 10-25s for complex receipts
