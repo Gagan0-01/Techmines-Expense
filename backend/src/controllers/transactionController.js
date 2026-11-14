@@ -1,8 +1,11 @@
 import mongoose from 'mongoose';
+import fs from 'fs';
 import { Transaction } from '../models/Transaction.js';
 import { Settings } from '../models/Settings.js';
 import { Document } from '../models/Document.js';
 import { getDateRange } from '../utils/dateUtils.js';
+import { processReceiptWithGemini } from '../services/geminiReceiptService.js';
+import { classifyReceiptTransaction } from '../services/classificationService.js';
 
 /**
  * Get all transactions with flexible filtering, searching, and sorting
@@ -539,5 +542,209 @@ export const deleteTransaction = async (req, res) => {
   } catch (error) {
     console.error('Error deleting transaction:', error);
     res.status(500).json({ success: false, message: 'Failed to delete transaction', error: error.message });
+  }
+};
+
+/**
+ * Quick Receipt Scan & Auto-Add Transaction
+ *
+ * Accepts a temporary receipt image, sends it to Gemini Vision for extraction,
+ * classifies the transaction type, and either auto-creates the transaction or
+ * returns extracted data for user confirmation.
+ *
+ * The temporary image file is ALWAYS deleted immediately after processing.
+ * No image is stored permanently — only transaction data is saved to MongoDB.
+ */
+export const scanReceiptAndCreateTransaction = async (req, res) => {
+  let tempFilePath = null;
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No receipt image was uploaded.',
+      });
+    }
+
+    tempFilePath = req.file.path;
+    const mimeType = req.file.mimetype;
+
+    // 1. Send image to Gemini Vision for extraction
+    let geminiResult;
+    try {
+      geminiResult = await processReceiptWithGemini(tempFilePath, mimeType);
+    } catch (geminiErr) {
+      console.error('[ScanReceipt] Gemini processing error:', geminiErr.message);
+      return res.status(422).json({
+        success: false,
+        message: 'Could not process receipt image. Please try again or enter the transaction manually.',
+        error: geminiErr.message,
+      });
+    }
+
+    if (!geminiResult?.success || !geminiResult?.data) {
+      return res.status(422).json({
+        success: false,
+        message: 'Receipt image could not be read. Please try a clearer photo.',
+      });
+    }
+
+    const data = geminiResult.data;
+
+    // 2. Extract key fields from Gemini structured output
+    const extractedMerchant = data.merchantName?.value || null;
+    const extractedDateStr = data.date?.value || null;
+    const extractedTotal = data.total?.value;
+    const extractedSubtotal = data.subtotal?.value || null;
+    const extractedTax = data.tax?.value || null;
+    const extractedPaymentMethod = data.paymentMethod?.value || null;
+    const extractedReceiptNumber = data.receiptNumber?.value || null;
+    const extractedItems = Array.isArray(data.items)
+      ? data.items.map((item, idx) => ({
+          name: item.description?.value || `Item #${idx + 1}`,
+          quantity: typeof item.quantity?.value === 'number' ? item.quantity.value : 1,
+          price: typeof item.unitPrice?.value === 'number' ? item.unitPrice.value : 0,
+          amount: typeof item.amount?.value === 'number' ? item.amount.value : 0,
+        }))
+      : [];
+
+    // 3. Classify as income or expense
+    const classification = classifyReceiptTransaction(data, data.rawText || '', []);
+    const proposedType = classification.proposedType || 'expense';
+    const suggestedCategory = classification.suggestedCategory || 'Office Supplies';
+
+    // 4. Parse and validate amount
+    const amount = typeof extractedTotal === 'number' && extractedTotal > 0
+      ? Math.round(extractedTotal * 100) / 100
+      : null;
+
+    // 5. Parse and validate date
+    let transactionDate = new Date();
+    if (extractedDateStr) {
+      const parsed = new Date(extractedDateStr);
+      if (!isNaN(parsed.getTime())) {
+        transactionDate = parsed;
+      }
+    }
+
+    // 6. Normalize payment method to valid enum
+    const validPaymentMethods = ['Cash', 'UPI', 'Bank Transfer'];
+    let paymentMethod = 'Cash';
+    if (extractedPaymentMethod) {
+      const pmLower = extractedPaymentMethod.toLowerCase();
+      if (pmLower.includes('upi') || pmLower.includes('gpay') || pmLower.includes('phonepe') || pmLower.includes('paytm')) {
+        paymentMethod = 'UPI';
+      } else if (pmLower.includes('bank') || pmLower.includes('transfer') || pmLower.includes('neft') || pmLower.includes('rtgs') || pmLower.includes('imps')) {
+        paymentMethod = 'Bank Transfer';
+      } else if (pmLower.includes('card') || pmLower.includes('credit') || pmLower.includes('debit')) {
+        paymentMethod = 'Bank Transfer'; // Map card to Bank Transfer (closest valid option)
+      } else if (validPaymentMethods.includes(extractedPaymentMethod)) {
+        paymentMethod = extractedPaymentMethod;
+      }
+    }
+
+    // 7. Build description
+    const descParts = [];
+    if (data.documentType && data.documentType !== 'other') {
+      descParts.push(data.documentType.replace(/_/g, ' '));
+    }
+    if (extractedMerchant) {
+      descParts.push(`from ${extractedMerchant}`);
+    }
+    const description = descParts.length > 0
+      ? descParts.join(' ').trim()
+      : 'Receipt scan transaction';
+
+    // 8. Build title
+    const title = extractedMerchant
+      ? `${extractedMerchant}${extractedReceiptNumber ? ` #${extractedReceiptNumber}` : ''}`
+      : `Scanned ${proposedType === 'incoming' ? 'Income' : 'Expense'}`;
+
+    // 9. Determine if we can auto-save or need confirmation
+    const needsConfirmation = (
+      amount === null ||
+      amount <= 0 ||
+      data.total?.confidence < 70 ||
+      data.requiresManualReview ||
+      classification.confidence < 70
+    );
+
+    // Build extracted data response
+    const extractedData = {
+      merchant: extractedMerchant,
+      date: transactionDate.toISOString().split('T')[0],
+      amount,
+      type: proposedType,
+      category: suggestedCategory,
+      paymentMethod,
+      description,
+      title,
+      receiptNumber: extractedReceiptNumber,
+      subtotal: extractedSubtotal,
+      tax: extractedTax,
+      items: extractedItems,
+      confidence: classification.confidence,
+      classificationReason: classification.reason,
+      warnings: data.warnings || [],
+      engine: geminiResult.engine,
+    };
+
+    if (needsConfirmation) {
+      // Return extracted data for user to confirm/correct
+      return res.status(200).json({
+        success: true,
+        autoSaved: false,
+        needsConfirmation: true,
+        extractedData,
+        message: amount === null || amount <= 0
+          ? 'Could not read the total amount. Please enter it manually.'
+          : 'Please review and confirm the extracted details.',
+      });
+    }
+
+    // 10. Auto-create transaction (confident extraction)
+    const newTransaction = new Transaction({
+      userId: req.userId,
+      title: title.substring(0, 200),
+      amount,
+      type: proposedType,
+      category: suggestedCategory,
+      paymentMethod,
+      date: transactionDate,
+      notes: description,
+      referenceNumber: extractedReceiptNumber || '',
+      vendorRecipient: extractedMerchant || '',
+      merchant: extractedMerchant || '',
+      subtotal: typeof extractedSubtotal === 'number' ? extractedSubtotal : null,
+      tax: typeof extractedTax === 'number' ? extractedTax : null,
+      receiptTax: typeof extractedTax === 'number' ? extractedTax : null,
+      items: extractedItems,
+      // No receiptImage, no documentId, no ocrStatus — no image storage
+    });
+
+    const saved = await newTransaction.save();
+
+    return res.status(201).json({
+      success: true,
+      autoSaved: true,
+      needsConfirmation: false,
+      transaction: saved,
+      extractedData,
+      message: `${proposedType === 'incoming' ? 'Income' : 'Expense'} of ₹${amount} auto-saved successfully.`,
+    });
+  } catch (error) {
+    console.error('[ScanReceipt] Unexpected error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to process receipt. Please try again.',
+      error: error.message,
+    });
+  } finally {
+    // ALWAYS delete temporary file, regardless of success or failure
+    if (tempFilePath) {
+      fs.promises.unlink(tempFilePath).catch((unlinkErr) => {
+        console.warn('[ScanReceipt] Failed to delete temp file:', tempFilePath, unlinkErr.message);
+      });
+    }
   }
 };

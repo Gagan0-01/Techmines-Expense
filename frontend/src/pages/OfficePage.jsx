@@ -5,6 +5,7 @@ import { TransactionTable } from '../components/transactions/TransactionTable';
 import { TransactionFilters } from '../components/transactions/TransactionFilters';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { EmptyState } from '../components/common/EmptyState';
+import { QuickReceiptScan } from '../components/transactions/QuickReceiptScan';
 import { useLedger } from '../context/LedgerContext';
 import { fetchTransactions } from '../services/api';
 import {
@@ -162,6 +163,9 @@ export const OfficePage = () => {
             <span>+ Add Expense</span>
           </button>
         </div>
+
+        {/* Quick Receipt Scan — AI-powered instant transaction from receipt photo */}
+        <QuickReceiptScan onTransactionCreated={() => loadTransactionsList()} />
 
         {/* 
           Four Financial Summary Cards:
