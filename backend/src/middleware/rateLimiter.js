@@ -152,11 +152,26 @@ export const financialOpsRateLimiter = createRateLimiter({
   message: 'Too many opening balance adjustments requested. Please wait before submitting additional changes.',
 });
 
+/**
+ * Document OCR & Upload Rate Limiter
+ * Protects vision OCR endpoints from rapid abuse and API credit depletion
+ * Default: 40 scans per 15 minutes per IP
+ */
+const docOcrStore = new MemoryStore();
+const docRateMax = Number(process.env.DOC_RATE_LIMIT_MAX) || 40;
+export const documentOcrRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: docRateMax,
+  store: docOcrStore,
+  message: 'Document scan rate limit reached. Please wait a few minutes before scanning additional documents.',
+});
+
 // Export stores for testing reset/inspection
 export const _testStores = {
   authStore,
   generalApiStore,
   financialStore,
+  docOcrStore,
   MemoryStore,
 };
 

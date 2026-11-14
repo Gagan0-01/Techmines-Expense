@@ -162,5 +162,32 @@ describe('Document Scanner API & Tenant Isolation Tests', () => {
     await getDocumentById(req, res);
     assert.equal(res.statusCode, 404);
   });
+
+  test('DOC-SEC-6: verifyFileMagicBytes validates genuine signatures and rejects spoofed files', async () => {
+    const { verifyFileMagicBytes } = await import('../src/middleware/upload.js');
+    const os = await import('os');
+    const path = await import('path');
+    const fs = await import('fs');
+
+    const tempDir = os.tmpdir();
+    const fakePng = path.join(tempDir, `test-fake-${Date.now()}.png`);
+    const genuinePng = path.join(tempDir, `test-genuine-${Date.now()}.png`);
+
+    try {
+      // 1. Spoofed PNG: text file renamed to .png
+      await fs.promises.writeFile(fakePng, 'malicious script content here');
+      const isFakeValid = await verifyFileMagicBytes(fakePng, 'image/png');
+      assert.equal(isFakeValid, false);
+
+      // 2. Genuine PNG header: 89 50 4E 47
+      const validPngHeader = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d]);
+      await fs.promises.writeFile(genuinePng, validPngHeader);
+      const isGenuineValid = await verifyFileMagicBytes(genuinePng, 'image/png');
+      assert.equal(isGenuineValid, true);
+    } finally {
+      if (fs.existsSync(fakePng)) await fs.promises.unlink(fakePng).catch(() => {});
+      if (fs.existsSync(genuinePng)) await fs.promises.unlink(genuinePng).catch(() => {});
+    }
+  });
 });
 
