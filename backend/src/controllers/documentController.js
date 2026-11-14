@@ -1,8 +1,10 @@
 import mongoose from 'mongoose';
 import fs from 'fs';
 import { Document } from '../models/Document.js';
+import { Category } from '../models/Category.js';
 import { extractText } from '../services/ocrService.js';
 import { getSafeFilePath, deleteStoredFile } from '../services/storageService.js';
+import { classifyReceiptTransaction } from '../services/classificationService.js';
 
 /**
  * Upload a new document and execute OCR text extraction
@@ -53,10 +55,71 @@ export const uploadDocument = async (req, res) => {
       doc.metadata = ocrResult.metadata || {};
       doc.processingStatus = 'completed';
       doc.processingError = null;
+
+      // Generate suggested transaction and proposed classification
+      const userCategories = await Category.find({
+        $or: [{ userId: req.userId }, { userId: null }],
+      }).lean();
+
+      const classification = classifyReceiptTransaction(
+        doc.structuredData,
+        doc.extractedText,
+        userCategories
+      );
+
+      const s = doc.structuredData || {};
+      const amountVal = s.total?.value ?? s.financials?.grandTotal ?? null;
+      const subtotalVal = s.subtotal?.value ?? s.financials?.subtotal ?? null;
+      const taxVal = s.tax?.value ?? s.financials?.tax ?? null;
+      const merchantVal = s.merchantName?.value || s.merchant?.name || doc.title || '';
+      const dateVal = s.date?.value || s.invoice?.date || null;
+      const paymentMethodVal = s.paymentMethod?.value || s.payment?.method || 'UPI';
+
+      const itemsList = Array.isArray(s.items)
+        ? s.items.map((it) => ({
+            name: it.description?.value || it.description || it.name || '',
+            quantity: it.quantity?.value ?? it.quantity ?? 1,
+            price: it.unitPrice?.value ?? it.unitPrice ?? 0,
+            amount: it.amount?.value ?? it.amount ?? 0,
+          }))
+        : [];
+
+      doc.suggestedTransaction = {
+        type: classification.proposedType,
+        merchant: merchantVal,
+        date: dateVal,
+        amount: amountVal,
+        subtotal: subtotalVal,
+        tax: taxVal,
+        paymentMethod: ['Cash', 'UPI', 'Bank Transfer'].includes(paymentMethodVal)
+          ? paymentMethodVal
+          : 'UPI',
+        items: itemsList,
+        receiptImage: doc.storedFileName,
+        documentId: doc._id,
+        category: classification.suggestedCategory,
+        classificationReason: classification.reason,
+        ocrStatus: 'completed',
+      };
     } catch (ocrErr) {
       console.error(`[DocumentController] OCR extraction failed for doc ${doc._id}:`, ocrErr.message);
       doc.processingStatus = 'failed';
       doc.processingError = ocrErr.message || 'Text extraction failed.';
+      doc.suggestedTransaction = {
+        type: 'expense',
+        merchant: doc.title,
+        date: null,
+        amount: null,
+        subtotal: null,
+        tax: null,
+        paymentMethod: 'UPI',
+        items: [],
+        receiptImage: doc.storedFileName,
+        documentId: doc._id,
+        category: 'Office Supplies',
+        classificationReason: 'OCR text extraction failed, defaulting to manual entry.',
+        ocrStatus: 'failed',
+      };
     }
 
     await doc.save();
@@ -67,6 +130,7 @@ export const uploadDocument = async (req, res) => {
         ? 'Document uploaded and text extracted successfully.'
         : 'Document uploaded, but text extraction encountered an error.',
       document: doc,
+      proposedTransaction: doc.suggestedTransaction,
     });
   } catch (error) {
     console.error('[DocumentController] Upload error:', error.message);
@@ -196,6 +260,52 @@ export const processDocument = async (req, res) => {
       doc.metadata = ocrResult.metadata || {};
       doc.processingStatus = 'completed';
       doc.processingError = null;
+
+      // Re-generate proposed transaction
+      const userCategories = await Category.find({
+        $or: [{ userId: req.userId }, { userId: null }],
+      }).lean();
+
+      const classification = classifyReceiptTransaction(
+        doc.structuredData,
+        doc.extractedText,
+        userCategories
+      );
+
+      const s = doc.structuredData || {};
+      const amountVal = s.total?.value ?? s.financials?.grandTotal ?? null;
+      const subtotalVal = s.subtotal?.value ?? s.financials?.subtotal ?? null;
+      const taxVal = s.tax?.value ?? s.financials?.tax ?? null;
+      const merchantVal = s.merchantName?.value || s.merchant?.name || doc.title || '';
+      const dateVal = s.date?.value || s.invoice?.date || null;
+      const paymentMethodVal = s.paymentMethod?.value || s.payment?.method || 'UPI';
+
+      const itemsList = Array.isArray(s.items)
+        ? s.items.map((it) => ({
+            name: it.description?.value || it.description || it.name || '',
+            quantity: it.quantity?.value ?? it.quantity ?? 1,
+            price: it.unitPrice?.value ?? it.unitPrice ?? 0,
+            amount: it.amount?.value ?? it.amount ?? 0,
+          }))
+        : [];
+
+      doc.suggestedTransaction = {
+        type: classification.proposedType,
+        merchant: merchantVal,
+        date: dateVal,
+        amount: amountVal,
+        subtotal: subtotalVal,
+        tax: taxVal,
+        paymentMethod: ['Cash', 'UPI', 'Bank Transfer'].includes(paymentMethodVal)
+          ? paymentMethodVal
+          : 'UPI',
+        items: itemsList,
+        receiptImage: doc.storedFileName,
+        documentId: doc._id,
+        category: classification.suggestedCategory,
+        classificationReason: classification.reason,
+        ocrStatus: 'completed',
+      };
     } catch (ocrErr) {
       doc.processingStatus = 'failed';
       doc.processingError = ocrErr.message || 'Text re-extraction failed.';
@@ -209,6 +319,7 @@ export const processDocument = async (req, res) => {
         ? 'OCR text re-extracted successfully.'
         : 'OCR text extraction failed.',
       document: doc,
+      proposedTransaction: doc.suggestedTransaction,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to process document OCR.' });

@@ -17,10 +17,16 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import recurringRoutes from './routes/recurringRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import documentRoutes from './routes/documentRoutes.js';
 import { requireAuth } from './middleware/auth.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 5000;

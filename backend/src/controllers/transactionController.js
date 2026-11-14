@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { Transaction } from '../models/Transaction.js';
 import { Settings } from '../models/Settings.js';
+import { Document } from '../models/Document.js';
 import { getDateRange } from '../utils/dateUtils.js';
 
 /**
@@ -316,6 +317,14 @@ export const createTransaction = async (req, res) => {
       notes,
       referenceNumber,
       vendorRecipient,
+      merchant,
+      subtotal,
+      tax,
+      receiptTax,
+      items,
+      receiptImage,
+      ocrStatus,
+      documentId,
       recurringScheduleId,
     } = req.body;
 
@@ -345,6 +354,46 @@ export const createTransaction = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid transaction date' });
     }
 
+    // Document linking & duplicate prevention
+    let linkedDoc = null;
+    if (documentId) {
+      if (!mongoose.Types.ObjectId.isValid(documentId)) {
+        return res.status(400).json({ success: false, message: 'Invalid document ID format' });
+      }
+
+      linkedDoc = await Document.findOne({ _id: documentId, userId: req.userId });
+      if (!linkedDoc) {
+        return res.status(404).json({ success: false, message: 'Linked receipt document not found or unauthorized' });
+      }
+
+      // Check if already converted to prevent duplicate transactions
+      if (linkedDoc.convertedToTransaction && linkedDoc.transactionId) {
+        const existingTx = await Transaction.findOne({ _id: linkedDoc.transactionId, userId: req.userId });
+        if (existingTx) {
+          return res.status(409).json({
+            success: false,
+            message: 'This receipt has already been saved as a transaction.',
+            transaction: existingTx,
+          });
+        }
+      }
+    }
+
+    const finalMerchant = (merchant || vendorRecipient || '').trim();
+    const finalTax = typeof tax === 'number' ? tax : (typeof receiptTax === 'number' ? receiptTax : null);
+    const finalSubtotal = typeof subtotal === 'number' ? subtotal : null;
+    const finalReceiptImage = (receiptImage || linkedDoc?.storedFileName || '').trim();
+    const finalOcrStatus = ocrStatus || (linkedDoc ? 'completed' : 'none');
+
+    const formattedItems = Array.isArray(items)
+      ? items.map((it) => ({
+          name: typeof it.name === 'string' ? it.name.trim() : (it.description || ''),
+          quantity: typeof it.quantity === 'number' ? it.quantity : 1,
+          price: typeof it.price === 'number' ? it.price : (it.unitPrice || 0),
+          amount: typeof it.amount === 'number' ? it.amount : 0,
+        }))
+      : [];
+
     const newTransaction = new Transaction({
       userId: req.userId,
       title: title.trim(),
@@ -355,11 +404,25 @@ export const createTransaction = async (req, res) => {
       date: transactionDate,
       notes: notes ? notes.trim() : '',
       referenceNumber: referenceNumber ? referenceNumber.trim() : '',
-      vendorRecipient: vendorRecipient ? vendorRecipient.trim() : '',
+      vendorRecipient: finalMerchant,
+      merchant: finalMerchant,
+      subtotal: finalSubtotal,
+      tax: finalTax,
+      receiptTax: finalTax,
+      items: formattedItems,
+      receiptImage: finalReceiptImage,
+      ocrStatus: finalOcrStatus,
+      documentId: linkedDoc ? linkedDoc._id : null,
       recurringScheduleId: recurringScheduleId || null,
     });
 
     const saved = await newTransaction.save();
+
+    if (linkedDoc) {
+      linkedDoc.convertedToTransaction = true;
+      linkedDoc.transactionId = saved._id;
+      await linkedDoc.save();
+    }
 
     res.status(201).json({
       success: true,

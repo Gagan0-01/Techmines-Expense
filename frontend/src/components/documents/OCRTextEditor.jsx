@@ -32,6 +32,7 @@ import {
   reprocessDocument,
   downloadDocumentTxt,
 } from '../../services/documentService';
+import { ReceiptReviewModal } from './ReceiptReviewModal';
 
 /**
  * Renders a color-coded confidence pill with review status
@@ -80,6 +81,21 @@ export const OCRTextEditor = ({ document, onDocumentUpdated }) => {
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+
+  const handleTransactionSaved = (newTx, doc) => {
+    if (onDocumentUpdated) {
+      onDocumentUpdated({
+        ...doc,
+        convertedToTransaction: true,
+        transactionId: newTx._id,
+      });
+    }
+    setStatusMessage({
+      type: 'success',
+      text: `${newTx.type === 'incoming' ? 'Incoming money' : 'Office expense'} recorded and receipt linked.`,
+    });
+  };
 
   useEffect(() => {
     if (document) {
@@ -437,15 +453,22 @@ export const OCRTextEditor = ({ document, onDocumentUpdated }) => {
         {/* Action Toolbar */}
         <div className="flex flex-wrap items-center gap-1.5">
           {hasStructured && (
-            <button
-              type="button"
-              onClick={handleCreateExpense}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-[#ff5e00] hover:bg-[#e05300] text-white shadow-xs transition-transform active:scale-95 cursor-pointer"
-              title="Review & Confirm Expense in Ledger"
-            >
-              <ArrowUpRight className="w-3.5 h-3.5" />
-              Convert to Expense
-            </button>
+            document.convertedToTransaction ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                Saved to Ledger
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsReviewModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl bg-[#ff5e00] hover:bg-[#e05300] text-white shadow-xs transition-transform active:scale-95 cursor-pointer"
+                title="Review & Save as Income or Expense in Ledger"
+              >
+                <ArrowUpRight className="w-3.5 h-3.5" />
+                Review & Save Transaction
+              </button>
+            )
           )}
 
           {hasStructured && (
@@ -953,6 +976,14 @@ export const OCRTextEditor = ({ document, onDocumentUpdated }) => {
           </div>
         </div>
       )}
+
+      {/* Receipt Review & Save Transaction Modal */}
+      <ReceiptReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        document={document}
+        onSaved={handleTransactionSaved}
+      />
     </div>
   );
 };

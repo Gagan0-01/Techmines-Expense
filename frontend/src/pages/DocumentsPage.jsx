@@ -4,6 +4,7 @@ import { DocumentUploader } from '../components/documents/DocumentUploader';
 import { DocumentList } from '../components/documents/DocumentList';
 import { DocumentPreview } from '../components/documents/DocumentPreview';
 import { OCRTextEditor } from '../components/documents/OCRTextEditor';
+import { ReceiptReviewModal } from '../components/documents/ReceiptReviewModal';
 import { fetchDocuments, deleteDocument } from '../services/documentService';
 import { ScanText, Sparkles, RefreshCw } from 'lucide-react';
 
@@ -13,6 +14,7 @@ export const DocumentsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [reviewModalDoc, setReviewModalDoc] = useState(null);
 
   const loadDocuments = useCallback(async () => {
     try {
@@ -46,6 +48,7 @@ export const DocumentsPage = () => {
   const handleDocumentUploaded = (newDoc) => {
     setDocuments((prev) => [newDoc, ...prev]);
     setSelectedDocument(newDoc);
+    setReviewModalDoc(newDoc);
   };
 
   const handleDocumentUpdated = (updatedDoc) => {
@@ -139,6 +142,23 @@ export const DocumentsPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Immediate Review Modal right after upload */}
+      {reviewModalDoc && (
+        <ReceiptReviewModal
+          isOpen={Boolean(reviewModalDoc)}
+          onClose={() => setReviewModalDoc(null)}
+          document={reviewModalDoc}
+          onSaved={(newTx, doc) => {
+            handleDocumentUpdated({
+              ...doc,
+              convertedToTransaction: true,
+              transactionId: newTx._id,
+            });
+            setReviewModalDoc(null);
+          }}
+        />
+      )}
     </Layout>
   );
 };

@@ -83,6 +83,21 @@ const documentSchema = new mongoose.Schema(
       type: String,
       default: 'gemini-flash',
     },
+    transactionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Transaction',
+      default: null,
+      index: true,
+    },
+    convertedToTransaction: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    suggestedTransaction: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
   {
     timestamps: true,

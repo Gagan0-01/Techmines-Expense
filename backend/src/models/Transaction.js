@@ -64,10 +64,51 @@ const transactionSchema = new mongoose.Schema(
       maxlength: [120, 'Vendor/Recipient cannot exceed 120 characters'],
       default: '',
     },
+    merchant: {
+      type: String,
+      trim: true,
+      maxlength: [120, 'Merchant cannot exceed 120 characters'],
+      default: '',
+    },
+    subtotal: {
+      type: Number,
+      default: null,
+    },
+    tax: {
+      type: Number,
+      default: null,
+    },
+    receiptTax: {
+      type: Number,
+      default: null,
+    },
+    receiptImage: {
+      type: String,
+      default: '',
+    },
+    ocrStatus: {
+      type: String,
+      enum: ['none', 'pending', 'completed', 'failed'],
+      default: 'none',
+    },
+    items: [
+      {
+        name: { type: String, trim: true, default: '' },
+        quantity: { type: Number, default: 1 },
+        price: { type: Number, default: 0 },
+        amount: { type: Number, default: 0 },
+      },
+    ],
     recurringScheduleId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'RecurringSchedule',
       default: null,
+    },
+    documentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Document',
+      default: null,
+      index: true,
     },
   },
   {

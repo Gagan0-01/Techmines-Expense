@@ -343,42 +343,63 @@ export const processReceiptWithGemini = async (filePath, mimeType) => {
 
   await validateImageInput(filePath, mimeType);
 
-  const modelName = getGeminiModelName();
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY.trim() });
+  const primaryModel = getGeminiModelName();
+  const fallbackModels = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite']
+    .filter((m) => m !== primaryModel);
+  const modelsToTry = [primaryModel, ...fallbackModels];
 
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY.trim() });
   const fileBuffer = await fs.promises.readFile(filePath);
   const base64Data = fileBuffer.toString('base64');
 
-  try {
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              inlineData: {
-                mimeType,
-                data: base64Data,
+  let lastError = null;
+  let responseText = null;
+  let usedModel = primaryModel;
+
+  for (const currentModel of modelsToTry) {
+    try {
+      const response = await ai.models.generateContent({
+        model: currentModel,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                inlineData: {
+                  mimeType,
+                  data: base64Data,
+                },
               },
-            },
-            {
-              text: `${SYSTEM_INSTRUCTION}\n\n${EXTRACTION_PROMPT}`,
-            },
-          ],
+              {
+                text: `${SYSTEM_INSTRUCTION}\n\n${EXTRACTION_PROMPT}`,
+              },
+            ],
+          },
+        ],
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
         },
-      ],
-      config: {
-        responseMimeType: 'application/json',
-        temperature: 0.1,
-      },
-    });
+      });
 
-    const responseText = response?.text ? response.text.trim() : '';
-    if (!responseText) {
-      throw new Error('Gemini Vision returned an empty extraction response.');
+      if (response?.text) {
+        responseText = response.text.trim();
+        usedModel = currentModel;
+        break;
+      }
+    } catch (err) {
+      lastError = err;
+      console.warn(`[Gemini Vision] Model '${currentModel}' attempt failed: ${err.message}. Trying next candidate...`);
     }
+  }
 
+  if (!responseText) {
+    throw new Error(
+      `Gemini Receipt OCR processing failed on all candidate models: ${lastError ? lastError.message : 'Empty response'}`
+    );
+  }
+
+  try {
     let parsed;
     try {
       parsed = JSON.parse(responseText);
@@ -391,9 +412,9 @@ export const processReceiptWithGemini = async (filePath, mimeType) => {
     return {
       success: true,
       data: validatedResult,
-      engine: modelName,
+      engine: usedModel,
     };
   } catch (error) {
-    throw new Error(`Gemini Receipt OCR processing failed: ${error.message}`);
+    throw new Error(`Gemini Receipt OCR post-processing failed: ${error.message}`);
   }
 };

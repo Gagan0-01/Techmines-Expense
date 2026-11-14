@@ -142,6 +142,12 @@ export const DocumentList = ({
                       {doc.title}
                     </span>
                     {getStatusBadge(doc.processingStatus)}
+                    {doc.convertedToTransaction && (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded-full shrink-0">
+                        <CheckCircle2 className="w-2.5 h-2.5" />
+                        Saved
+                      </span>
+                    )}
                   </div>
 
                   <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate">
