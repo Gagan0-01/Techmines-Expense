@@ -347,6 +347,60 @@ export const TransactionTable = ({ transactions = [], onRefresh }) => {
                   </p>
                 </div>
               )}
+
+              {/* Itemized Line Items */}
+              {Array.isArray(viewingTx.items) && viewingTx.items.length > 0 && (
+                <div>
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">
+                    Purchased / Invoiced Items ({viewingTx.items.length})
+                  </span>
+                  <div className="mt-1 border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden divide-y divide-slate-100 dark:divide-zinc-900 text-xs">
+                    {viewingTx.items.map((it, idx) => (
+                      <div key={idx} className="p-2 flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-slate-800 dark:text-zinc-200">{it.name}</p>
+                          <p className="text-[10px] text-slate-400">
+                            Qty: {it.quantity} {it.price ? `@ ₹${it.price}` : ''}
+                          </p>
+                        </div>
+                        <span className="font-bold text-slate-800 dark:text-zinc-200">
+                          {formatINR(it.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Subtotal & Tax Breakdown */}
+              {(viewingTx.subtotal || viewingTx.tax) && (
+                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400 p-2 bg-slate-50 dark:bg-zinc-950 rounded-xl border border-slate-200 dark:border-zinc-800">
+                  {viewingTx.subtotal ? <span>Subtotal: <strong>{formatINR(viewingTx.subtotal)}</strong></span> : null}
+                  {viewingTx.tax ? <span>GST/Tax: <strong>{formatINR(viewingTx.tax)}</strong></span> : null}
+                </div>
+              )}
+
+              {/* Linked Receipt Attachment */}
+              {viewingTx.documentId && (
+                <div>
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider">
+                    Scanned Receipt
+                  </span>
+                  <div className="mt-1 flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950">
+                    <span className="text-xs text-slate-700 dark:text-zinc-300 font-medium truncate">
+                      Linked Receipt File
+                    </span>
+                    <a
+                      href={`/api/documents/${viewingTx.documentId}/download`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-semibold text-[#ff5e00] hover:underline"
+                    >
+                      View Receipt ↗
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 dark:border-zinc-800">

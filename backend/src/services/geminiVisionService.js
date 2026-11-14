@@ -14,7 +14,7 @@ export const isGeminiConfigured = () => {
  * Get active Gemini Vision model name (defaults to current Gemini 2.5 Flash)
  */
 export const getGeminiModelName = () => {
-  return process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  return process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 };
 
 const RECEIPT_ANALYSIS_PROMPT = `

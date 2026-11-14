@@ -193,7 +193,7 @@ describe('Gemini Receipt OCR Service - Step 3 Unit & Validation Tests', () => {
       assert.equal(isGeminiConfigured(), true);
 
       delete process.env.GEMINI_MODEL;
-      assert.equal(getGeminiModelName(), 'gemini-2.5-flash');
+      assert.equal(getGeminiModelName(), 'gemini-3.8-flash');
 
       process.env.GEMINI_MODEL = 'gemini-1.5-flash';
       assert.equal(getGeminiModelName(), 'gemini-1.5-flash');

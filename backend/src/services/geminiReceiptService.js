@@ -10,10 +10,10 @@ export const isGeminiConfigured = () => {
 };
 
 /**
- * Get active Gemini Vision model name (defaults to current Gemini 2.5 Flash)
+ * Get active Gemini Vision model name (defaults to current Gemini 3.8 Flash)
  */
 export const getGeminiModelName = () => {
-  return process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  return process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 };
 
 const SUPPORTED_MIME_TYPES = Object.freeze([
@@ -344,7 +344,7 @@ export const processReceiptWithGemini = async (filePath, mimeType) => {
   await validateImageInput(filePath, mimeType);
 
   const primaryModel = getGeminiModelName();
-  const fallbackModels = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite']
+  const fallbackModels = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite']
     .filter((m) => m !== primaryModel);
   const modelsToTry = [primaryModel, ...fallbackModels];
 
